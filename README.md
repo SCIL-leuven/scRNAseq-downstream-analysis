@@ -26,9 +26,15 @@ https://github.com/SCIL-leuven/scRNAseq-downstream-analysis.git
 
 ## Quality control
 
-For QC we use the package scater developed by David McCarthy from Cambridge
+For QC we use the package [scater](https://github.com/davismcc/scater) developed by David McCarthy from Cambridge
 
 you go to his [tutorial](https://github.com/davismcc/scater_tutorials_open_data) or clone this repository:
 ```R
 https://github.com/davismcc/scater_tutorials_open_data.git
 ```
+
+## Clustering
+
+For clustering we use the package [SC3](https://github.com/hemberg-lab/SC3) developed by the Hemberg lab from Cambridge
+
+A seperate tutorial for SC3 is not available but it is used in the [Hemberg course on single-cell RNA-sequencing](https://hemberg-lab.github.io/scRNA.seq.course/)
