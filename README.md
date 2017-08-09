@@ -31,8 +31,8 @@ https://github.com/SCIL-leuven/scRNAseq-downstream-analysis.git
 
 ## Starting material
 
-Make sure to have a count file containing single cells as columns and genes as rows.
-Make an annotation file that contains important annotation about your experiment.
+Make sure to have a **count file** containing single cells as columns and genes as rows.
+Make an **annotation file** that contains important annotation about your experiment.
 More information is given in the [Hemberg course](https://hemberg-lab.github.io/scRNA.seq.course/exprs-qc.html#tung-dataset)
 
 ## Quality control
