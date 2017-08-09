@@ -15,10 +15,14 @@ Download the latest version of R and Rstudio
 
 Open the reqs script, this contains all packages required for the downstream analysis
 
-Clone this repository
+Clone this repository in your Rstudio
 ```R
 https://github.com/SCIL-leuven/scRNAseq-downstream-analysis.git
 ```
+
+1. New project
+2. Version control
+3. Copy URL
 
 ## Quality control
 
