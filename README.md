@@ -26,3 +26,9 @@ https://github.com/SCIL-leuven/scRNAseq-downstream-analysis.git
 
 ## Quality control
 
+For QC we use the package scater developed by David McCarthy from Cambridge
+
+you go to his [tutorial](https://github.com/davismcc/scater_tutorials_open_data) or clone this repository:
+```R
+https://github.com/davismcc/scater_tutorials_open_data.git
+```
