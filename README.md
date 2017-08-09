@@ -39,7 +39,7 @@ More information is given in the [Hemberg course](https://hemberg-lab.github.io/
 
 For QC we use the package [scater](https://github.com/davismcc/scater) developed by David McCarthy from Cambridge
 
-you go to his [tutorial](https://github.com/davismcc/scater_tutorials_open_data) or clone this repository:
+You go to his [tutorial](https://github.com/davismcc/scater_tutorials_open_data) or clone this repository:
 ```R
 https://github.com/davismcc/scater_tutorials_open_data.git
 ```
@@ -48,4 +48,4 @@ https://github.com/davismcc/scater_tutorials_open_data.git
 
 For clustering we use the package [SC3](https://github.com/hemberg-lab/SC3) developed by the Hemberg lab from Cambridge
 
-A seperate tutorial for SC3 is not available but it is used in the [Hemberg course on single-cell RNA-sequencing](https://hemberg-lab.github.io/scRNA.seq.course/)
+A seperate tutorial for SC3 is not available but it is used in the [Hemberg course on single-cell RNA-sequencing.](https://hemberg-lab.github.io/scRNA.seq.course/)
