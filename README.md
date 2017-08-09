@@ -10,6 +10,11 @@ Kudos to the authors of these studies who have made their data available.
 * For the mouse cortex data, see the [Linnarsson Lab website.](http://linnarssonlab.org/cortex/)
 * For the mouse embryonic cell data, see the [Cambridge University Stem Cells website.](http://gastrulation.stemcells.cam.ac.uk/scialdone2016)
 
+## Tutorial
+
+A great tutorial that I used for analyzing single-cell RNA-seq data is the [Hemberg course](https://hemberg-lab.github.io/scRNA.seq.course/).
+It will go through all the important steps that I will also describe to you and contains scripts and videos.
+
 ## Setting up
 Download the latest version of R and Rstudio
 
@@ -23,6 +28,12 @@ https://github.com/SCIL-leuven/scRNAseq-downstream-analysis.git
 1. New project
 2. Version control
 3. Copy URL
+
+## Starting material
+
+Make sure to have a count file containing single cells as columns and genes as rows.
+Make an annotation file that contains important annotation about your experiment.
+More information is given in the [Hemberg course](https://hemberg-lab.github.io/scRNA.seq.course/exprs-qc.html#tung-dataset)
 
 ## Quality control
 
