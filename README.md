@@ -17,7 +17,7 @@ Open the reqs script, this contains all packages required for the downstream ana
 
 Clone this repository
 ```R
-
+https://github.com/SCIL-leuven/scRNAseq-downstream-analysis.git
 ```
 
 ## Quality control
