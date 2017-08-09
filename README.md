@@ -3,7 +3,7 @@ R scripts for downstream analysis for single-cell RNA-seq
 
 ## Data
 Datasets used as examples here include:
-* 3000 mouse cortex cells from Zeisel et al, 2015.
+* 3000 mouse cortex cells from [Zeisel et al, 2015.](http://science.sciencemag.org/content/347/6226/1138)
 * 1200 mouse embryonic cells from Scialdone et al, 2016.
 
 Kudos to the authors of these studies who have made their data available.
