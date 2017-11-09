@@ -15,6 +15,8 @@ Kudos to the authors of these studies who have made their data available.
 A great tutorial that I used for analyzing single-cell RNA-seq data is the [Hemberg course](https://hemberg-lab.github.io/scRNA.seq.course/).
 It will go through all the important steps that I will also describe to you and contains scripts and videos.
 
+Very intersting [page](https://github.com/seandavi/awesome-single-cell) with on overview of all the techniques and tutorials available for single cell RNA sequencing
+
 ## Setting up
 Download the latest version of R and Rstudio
 
