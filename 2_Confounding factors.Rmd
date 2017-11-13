@@ -1,0 +1,221 @@
+---
+title: "GC040290 Confounding factors"
+author: "Jordi Camps"
+date: "June 26, 2017"
+output: html_document
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(scater, quietly = TRUE)
+library(scRNA.seq.funcs)
+library(RUVSeq)
+library(scran)
+library(edgeR)
+library(RColorBrewer)
+options(stringsAsFactors = FALSE)
+sce_qc <- readRDS("Data/sce_qc.rds")
+endog_genes <- !fData(sce_qc)$is_feature_control
+setSpike(sce_qc) <- "ERCC"
+erccs <- fData(sce_qc)$is_feature_control
+```
+
+##Principal components
+```{r, fig.width=5.5, fig.height=4}
+scater::plotPCA(reads.qc[endog_genes, ],
+                colour_by = "batch",
+                size_by = "total_features",
+                shape_by = "individual",
+                exprs_values = "log2_counts") +
+  scale_colour_brewer(name = "Batch", type= "qual", palette = 3)
+```
+
+##Explained variance
+```{r, fig.width=6, fig.height=4}
+scater::plotQC(reads.qc[endog_genes, ],
+               type = "find-pcs",
+               variable = "total_features",
+               exprs_values = "log2_counts")
+
+scater::plotQC(reads.qc[endog_genes, ],
+               type = "expl",
+               exprs_values = "log2_counts",
+               variables = c("total_features",
+                             "total_counts",
+                             "batch",
+                             "pct_counts_feature_controls_ERCC",
+                             "pct_counts_feature_controls_MT",
+                             "cell_type",
+                             "genotype"))
+```
+
+##Normalizing between batches
+###ERCC normalization  with RUVg
+Plot ERCC percentage
+```{r}
+hist(pData(reads.qc)$pct_counts_feature_controls_ERCC)
+```
+
+RUVg (Normalized to exprs with Ruvg k=1)
+```{r, fig.width=5.5, fig.height=4.25}
+ruvg <- RUVg(counts(reads.qc), erccs, k = 1)
+set_exprs(reads.qc, "ruvg1") <- ruvg$normalizedCounts
+set_exprs(reads.qc, "ruvg1_logcpm") <- log2(t(t(ruvg$normalizedCounts) / 
+                                                colSums(ruvg$normalizedCounts) * 1e6) + 1)
+ruvg <- RUVg(counts(reads.qc), erccs, k = 10)
+set_exprs(reads.qc, "ruvg10") <- ruvg$normalizedCounts
+set_exprs(reads.qc, "ruvg10_logcpm") <- log2(t(t(ruvg$normalizedCounts) / 
+                                              colSums(ruvg$normalizedCounts) * 1e6) + 1)
+pca1 <- plotPCA(
+  reads.qc[endog_genes, ],
+  colour_by = "batch",
+  size_by = "total_features",
+  shape_by = "individual",
+  exprs_values = "exprs") +
+  labs(title = "PCA - RUVg normalisation: k = 1") +
+  scale_colour_brewer(name = "Batch", type= "qual", palette = 3)
+  
+pca2 <- plotPCA(
+  reads.qc[endog_genes, ],
+  colour_by = "batch",
+  size_by = "total_features",
+  shape_by = "individual",
+  exprs_values = "ruvg2_logcpm") +
+  labs(title = "PCA - RUVg normalisation log2-cpm: k = 10") +
+  scale_colour_brewer(name = "Batch", type= "qual", palette = 3)
+```
+
+```{r}
+cor(pca1$data$PC1,pData(reads.qc)$pct_counts_feature_controls_ERCC)
+cor(pca1$data$PC2,pData(reads.qc)$pct_counts_feature_controls_ERCC)
+
+pca1 <- plotPCA(
+  reads.qc[endog_genes, ],
+  colour_by = "batch",
+  size_by = "pct_counts_feature_controls_ERCC",
+  shape_by = "individual",
+  exprs_values = "exprs") +
+  labs(title = "PCA - RUVg normalisation: k = 1") +
+  scale_colour_brewer(name = "Batch", type= "qual", palette = 3)
+```
+
+
+
+###Replicates normalization with RUVs
+Normalization based on replicate plates
+```{r}
+scIdx <- matrix(-1, ncol = max(table(reads.qc$individual)), nrow = 2)
+tmp <- which(reads.qc$individual == "WT39")
+scIdx[1, 1:length(tmp)] <- tmp
+tmp <- which(reads.qc$individual == "SGCB9")
+scIdx[2, 1:length(tmp)] <- tmp
+cIdx <- rownames(reads.qc)
+ruvs <- RUVs(counts(reads.qc), cIdx, k = 1, scIdx = scIdx, isLog = FALSE)
+set_exprs(reads.qc, "ruvs1") <- ruvs$normalizedCounts
+set_exprs(reads.qc, "ruvs1_logcpm") <- log2(t(t(ruvs$normalizedCounts) / 
+                                              colSums(ruvs$normalizedCounts) * 1e6) + 1)
+ruvs <- RUVs(counts(reads.qc), cIdx, k = 2, scIdx = scIdx, isLog = FALSE)
+set_exprs(reads.qc, "ruvs2") <- ruvs$normalizedCounts
+set_exprs(reads.qc, "ruvs2_logcpm") <- log2(t(t(ruvs$normalizedCounts) / 
+                                              colSums(ruvs$normalizedCounts) * 1e6) + 1)
+plotPCA(
+  reads.qc[endog_genes, ],
+  colour_by = "batch",
+  size_by = "total_features",
+  shape_by = "individual",
+  exprs_values = "ruvs1_logcpm") +
+  ggtitle("PCA - RUVs normalisation: k = 1")
+plotPCA(
+  reads.qc[endog_genes, ],
+  colour_by = "batch",
+  size_by = "total_features",
+  shape_by = "individual",
+  exprs_values = "ruvs2_logcpm") +
+  ggtitle("PCA - RUVs normalisation log2-cpm : k = 2")
+```
+
+##Plot RLE
+```{r}
+boxplot(
+  list(
+    "Raw counts" = calc_cell_RLE(counts(reads.qc), erccs),
+    "RUVg (k = 1)" = calc_cell_RLE(assayData(reads.qc)$ruvg1, erccs),
+    "RUVg (k = 2)" = calc_cell_RLE(assayData(reads.qc)$ruvg2, erccs),
+    "RUVs (k = 1)" = calc_cell_RLE(assayData(reads.qc)$ruvs1, erccs),
+    "RUVs (k = 2)" = calc_cell_RLE(assayData(reads.qc)$ruvs2, erccs)
+  )
+)
+```
+
+##Differential expression
+DE between batches that should give the same expression
+
+###Wild type cells batch1 vs batch2
+```{r}
+keep <- c(
+  sample(which(reads.qc$batch == "WT39.1")), 
+  sample(which(reads.qc$batch == "WT39.2"))
+)
+design <- model.matrix(~reads.qc[, keep]$batch)
+dge1 <- DGEList(
+  counts = counts(reads.qc[, keep]), 
+  norm.factors = rep(1, length(keep)),
+  group = reads.qc[, keep]$batch
+)
+dge1 <- estimateDisp(dge1, design = design, trend.method = "none")
+plotBCV(dge1)
+fit1 <- glmFit(dge1, design)
+res1 <- glmLRT(fit1)
+topTags(res1)
+summary(decideTestsDGE(res1))
+plotSmear(
+  res1, lowess = TRUE,
+  de.tags = rownames(topTags(res1, n = sum(abs(decideTestsDGE(res1))))$table)
+)
+```
+
+###RUVg
+```{r}
+design_ruvg <- model.matrix(~ruvg$W[keep,] + reads.qc[, keep]$batch)
+head(design_ruvg)
+dge_ruvg <- estimateDisp(dge1, design = design_ruvg, trend.method = "none")
+plotBCV(dge_ruvg)
+fit2 <- glmFit(dge_ruvg, design_ruvg)
+res2 <- glmLRT(fit2)
+topTags(res2)
+summary(decideTestsDGE(res2))
+plotSmear(
+  res2, lowess = TRUE,
+  de.tags = rownames(topTags(res2, n = sum(abs(decideTestsDGE(res2))))$table)
+)
+```
+
+###RUVs
+```{r}
+design_ruvs <- model.matrix(~ruvs$W[keep,] + reads.qc[, keep]$batch)
+head(design_ruvs)
+dge_ruvs <- estimateDisp(dge1, design = design_ruvs, trend.method = "none")
+plotBCV(dge_ruvs)
+fit3 <- glmFit(dge_ruvs, design_ruvs)
+res3 <- glmLRT(fit3)
+topTags(res3)
+summary(decideTestsDGE(res3))
+plotSmear(
+  res3, lowess = TRUE,
+  de.tags = rownames(topTags(res3, n = sum(abs(decideTestsDGE(res3))))$table)
+)
+```
+###RUVs with scran
+```{r}
+reads.qc <- scran::computeSumFactors(reads.qc, sizes = 30, positive = TRUE)
+dge_ruvs$samples$norm.factors <- sizeFactors(reads.qc)[keep]
+dge_ruvs_sf <- estimateDisp(dge_ruvs, design = design_ruvs, trend.method = "none")
+plotBCV(dge_ruvs_sf)
+fit4 <- glmFit(dge_ruvs_sf, design_ruvs)
+res4 <- glmLRT(fit4)
+topTags(res4)
+summary(decideTestsDGE(res4))
+plotSmear(
+  res4, lowess = TRUE,
+  de.tags = rownames(topTags(res4, n = sum(abs(decideTestsDGE(res4))))$table)
+)
+```

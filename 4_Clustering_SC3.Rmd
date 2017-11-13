@@ -1,0 +1,404 @@
+---
+title: "Clustering"
+author: "Jordi Camps"
+date: "Oct 23, 2017"
+output: html_document
+---
+
+## Load libraries
+```{r setup, include=FALSE}
+library(knitr)
+library(SC3)
+#library(scater)
+library(RColorBrewer)
+library(viridis)
+library(SingleCellExperiment)
+library(grid)
+library(BiocGenerics)
+options(stringsAsFactors = FALSE)
+```
+
+### Pre-analysis settings and import dataset
+```{r}
+set.seed(1234567)
+camps <- readRDS("/home/jordi/stack/PhD/Results/Muscle progenitors/scRNAseq analysis/Analysis/GC040290/GC020490/Data/reads_qc_scran.rds")
+endog_genes <- !rowData(camps)$is_feature_control
+camps <- camps[endog_genes, ]
+rowData(camps)$feature_symbol <- rownames(camps)
+#camps <- camps[!duplicated(rownames(camps)), ]
+```
+
+
+## Custom functions
+```{r}
+plot_gene <- function(gene,sce_pca){
+  q <- qplot(sce_pca$PC1 , sce_pca$PC3, colour=exprs(sce_pca[gene])[1,])  + geom_point(size=3)
+  q <- q + labs(x = "Principal Component 1", y = "Principal Component 3", color = paste(gene))
+  q <- q + scale_fill_viridis()
+  q <- q + theme_bw(base_size=18) + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+  ggsave(paste("Geneplots/",gene,".png", sep=""),width = 14, height = 10, units = "cm", plot=q)
+}
+plot_gene_ggplot <- function(gene, sce_object, PCx, PCy) {
+  temp <- data.frame(PCa = sce_object[[PCx]], PCb = sce_object[[PCy]], gene_name = exprs(sce_object[gene])[1, ])
+  ggplot(temp, aes(PCa, PCb, col = gene_name)) +
+    geom_point(size = 3) +
+    labs(x = paste("Principal component ", PCx, sep = ""), y = paste("Principal compoenent ", PCy, sep = ""), color = paste(gene)) +
+    guides(color = guide_colorbar(barwidth = 0.5, barheight = 8, ticks = FALSE)) +
+    scale_color_viridis(option = "viridis") +
+    theme_bw(base_size=18) + 
+    theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+          legend.title = element_text(size = 24, face = "bold")) +
+    ggsave(paste("Geneplots/",gene,"_", PCx, "_", PCy,".png", sep=""),width = 14, height = 10, units = "cm")
+}
+plot_components <- function(sce_object, PCx, PCy, group, palette = 2, gene = FALSE, width = 14, height = 10) {
+  if (group == "genotype") {
+  temp <- data.frame(PCa = sce_object[[PCx]], PCb = sce_object[[PCy]], col = sce_object[[group]])
+  ggplot(temp, aes(PCa, PCb, col = col)) +
+    geom_point(size = 3) +
+    labs(x = paste("Principal component ", PCx, sep = ""), y = paste("Principal compoenent ", PCy, sep = ""), color = paste(group)) +
+    #guides() +
+    scale_color_manual(values = c("#FFC90C", "#89CAFF")) +
+    theme_bw(base_size=18) + 
+    theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+          legend.title = element_blank()) +
+    ggsave(paste("Plots/", group,"_", PCx, "_", PCy,".png", sep=""), width = width, height = height, units = "cm")
+  } else if (gene == TRUE) {
+    temp <- data.frame(PCa = sce_object[[PCx]], PCb = sce_object[[PCy]], gene_name = exprs(sce_object[group])[1, ])
+    ggplot(temp, aes(PCa, PCb, col = gene_name)) +
+    geom_point(size = 3) +
+    labs(x = paste("Principal component ", PCx, sep = ""), y = paste("Principal compoenent ", PCy, sep = ""), color = paste(group)) +
+    guides(color = guide_colorbar(barwidth = 0.5, barheight = 8, ticks = FALSE)) +
+    scale_color_viridis(option = "viridis") +
+    theme_bw(base_size=18) + 
+    theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+          legend.title = element_text(size = 24, face = "bold")) +
+    ggsave(paste("Geneplots/",group,"_", PCx, "_", PCy,".png", sep=""), width = width, height = height, units = "cm")
+  } else {
+    temp <- data.frame(PCa = sce_object[[PCx]], PCb = sce_object[[PCy]], col = sce_object[[group]])
+  ggplot(temp, aes(PCa, PCb, col = col)) +
+    geom_point(size = 3) +
+    labs(x = paste("Principal component ", PCx, sep = ""), y = paste("Principal compoenent ", PCy, sep = ""), color = paste(group)) +
+    #guides() +
+    scale_color_brewer(type = "qual", palette = palette) +
+    theme_bw(base_size=18) + 
+    theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+          legend.title = element_blank()) +
+    ggsave(paste("Plots/", group,"_", PCx, "_", PCy,".png", sep=""), width = width, height = height, units = "cm")
+  } 
+}
+save_pheatmap_tiff <- function(x, filename, width=10, height=10) {
+   stopifnot(!missing(x))
+   stopifnot(!missing(filename))
+   tiff(filename, width=width, height=height, units = "cm", res = 300)
+   grid::grid.newpage()
+   grid::grid.draw(x$gtable)
+   dev.off()
+}
+```
+
+# PCA
+## PCA with different components
+```{r}
+plotPCA(camps, exprs_values = "logcounts", ncomponents = 4, colour_by = "cell_type", theme = 14) +
+  scale_fill_brewer(name = "Cell type", type = "qual", palette = 2) +
+  ggsave("Plots/PCA_4_components_cell_type.png", width = 22, height = 20, units = "cm")
+plotPCA(camps, exprs_values = "logcounts", ncomponents = 4, colour_by = "genotype", theme = 14) +
+  scale_fill_manual(name = "Genotype", values = c("#FFC90C", "#89CAFF")) +
+  ggsave("Plots/PCA_4_components_genotype.png", width = 23, height = 20, units = "cm")
+```
+
+##Plot PCA of 4 different components
+```{r, fig.height=6, fig.width=7}
+(camps=plotPCA(camps, exprs_values = "logcounts", ntop=500, colour_by = "cell_type",  ncomponents=4, theme_size =10, return_SCE = TRUE))
+camps$PC1 <- reducedDim(camps)[,1]
+camps$PC2 <- reducedDim(camps)[,2]
+camps$PC3 <- reducedDim(camps)[,3]
+camps$PC4 <- reducedDim(camps)[,4]
+```
+
+### Create dataframe of principal components to use
+```{r}
+pcs <- data.frame(x = c("PC1", "PC1", "PC1", "PC2", "PC2", "PC3"), 
+                  y = c("PC2", "PC3", "PC4", "PC3", "PC4", "PC4"), 
+                  stringsAsFactors = FALSE)
+```
+
+
+### Plot and save principal components 1-4 and group by cell type
+```{r}
+for(i in 1:6) {
+  plot_components(camps, pcs[i, 1], pcs[i, 2], "cell_type", 2)
+}
+```
+
+### Plot and save principal components 1-4 and group by genotype
+```{r}
+for(i in 1:6) {
+  plot_components(camps, pcs[i, 1], pcs[i, 2], "genotype")
+}
+```
+
+### Plot and save gene over principal components 1-4
+```{r}
+for(i in 1:6) {
+  plot_components(camps, pcs[i, 1], pcs[i, 2], "Ly6a", gene = TRUE)
+}
+```
+
+
+## Plot markers
+#### Endothelial markers
+```{r}
+endothelial_markers <- c("Pecam1", "Tek", "Kdr", "Vwf")
+for(g in endothelial_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### FACS markers
+```{r}
+facs_markers <- c("Itga7", "Ly6a", "Alpl")
+for(g in facs_markers) {
+  if(g %in% row.names(camps)){
+    for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### Hematopoietic markers
+```{r}
+hematopoietic_markers <- c("Ptprc", "Cd68", "Adgre1", "F1LY76.1")
+for(g in hematopoietic_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### Myogenic markers
+```{r}
+myogenic_markers <- c("Pax3", "Pax7", "Cd34", "Myf5", "Myod1", "Myog", "Mymk", "Cd82", "Vcam1", "Fgfr4", "Asb5", "Cdh15", "Chrnb1")
+for(g in myogenic_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### FAP markers
+```{r}
+fap_markers <- c("Ly6a", "Pdgfra", "Cd34", "Pdgfrb", "Peg3", "Dcn", "Lum", "Igf1", "Mfap5", "Mfap2", "Il4", "Il4ra", "Hdac1", "Kdr", "Adamts1", "Cdh11", "Rnase4")
+for(g in fap_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### Adipogenic markers
+```{r}
+adipo_markers <- c("Cebpa", "Cebpb", "Pparg", "Lepr", "Adipoq")
+for(g in adipo_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### MAB markers
+```{r}
+mab_markers <- c("Cspg4", "Mcam", "Des", "Plp1", "Cdh19", "Col20a1", "Sox10")
+for(g in mab_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### Pericyte markers
+```{r}
+pericyte_markers <- c("Acta2", "Pdgfrb", "Cspg4", "Rgs5", "Nestin", "Myh11", "Kcnj8")
+for(g in pericyte_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### Sca-1 negative cluster
+```{r}
+sca1_neg_cluster <- c("Fmod", "Tnmd", "Thbs4", "Col11a1")
+for(g in sca1_neg_cluster) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### FAP subpopulation
+```{r}
+fap_subpopulation <- c("Gdf10", "Meox2", "Postn")
+for(g in fap_subpopulation) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### Genes differentially expressed between genotypes
+```{r}
+genotype_markers <- c("Tsc22d3", "Erdr1", "Has1", "Plagl1", "Sgcb")
+for(g in genotype_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+#### Cluster markers
+```{r}
+genotype_markers <- c("Cd82", "Myl9", "Rgs5", "Kcnj8", "Plp1", "Fmod", "Gdf10", "Dcn", "Lig1", "Scn7a")
+for(g in genotype_markers) {
+  if(g %in% row.names(camps)){
+      for (i in 1:6) {
+      plot_components(camps, pcs[i, 1], pcs[i, 2], group = g, gene = TRUE)
+    }
+  }
+}
+```
+
+
+## Code of Sebastiaan to check genes and gene weights in principal components
+### PCA plot of second and third component and third + fourth component
+exprs_mat <- get_exprs(camps, exprs_values = "exprs")
+feature_set = NULL
+scale_features = TRUE
+ntop=500
+ncomponents = 4
+rv <- matrixStats::rowVars(exprs_mat)
+feature_set <-
+  order(rv, decreasing = TRUE)[seq_len(min(ntop, length(rv)))]
+#### Subsetting to the desired features (do NOT move below 'scale()')
+exprs_to_plot <- exprs_mat[feature_set,,drop=FALSE]
+#### Standardise expression if scale_features argument is TRUE
+exprs_to_plot <- scale(t(exprs_to_plot), scale = scale_features)
+#### Drop any features with zero variance
+keep_feature <- (matrixStats::colVars(exprs_to_plot) > 0.001)
+keep_feature[is.na(keep_feature)] <- FALSE
+exprs_to_plot <- exprs_to_plot[, keep_feature]
+#### Compute PCA
+pca <- prcomp(exprs_to_plot)
+percentVar <- pca$sdev ^ 2 / sum(pca$sdev ^ 2)
+#### Plotting
+df_to_plot <- data.frame(pca$x[, 1:ncomponents],
+                         row.names = sampleNames(camps))
+ggplot(df_to_plot, aes(x = PC1, y = PC3, size = 8)) + 
+  geom_point() +
+  theme_bw(base_size=16) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  theme(text = element_text(size=20)) + 
+  guides(size=FALSE) + 
+  xlab(paste("PC1", paste(round(percentVar[1]*100),"%",sep=""))) +
+  ylab(paste("PC3", paste(round(percentVar[3]*100),"%",sep="")))
+ggplot(df_to_plot, aes(x = PC1, y = PC3, size = 8)) + 
+  geom_point() +
+  theme_bw(base_size=16) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  theme(text = element_text(size=20)) + 
+  guides(size=FALSE) + 
+  xlab(paste("PC1", paste(round(percentVar[1]*100),"%",sep=""))) +
+  ylab(paste("PC3", paste(round(percentVar[3]*100),"%",sep="")))
+
+
+
+
+# tSNE
+## Plot tSNE
+### Cell type and genotype
+```{r}
+plotTSNE(camps, exprs_values="logcounts", colour_by="cell_type", perplexity=20, rand_seed=100, theme_size = 12)
+plotTSNE(camps, exprs_values="logcounts", colour_by="genotype", perplexity=20, rand_seed=100, theme_size = 12)
+```
+
+
+# Clustering
+## SC3
+```{r, message = FALSE, warning=FALSE}
+camps <- sc3_prepare(camps, ks = 2:5)
+camps <- sc3_estimate_k(camps)
+metadata(camps)$sc3$k_estimation
+camps <- sc3(camps, ks = 3:11, biology = TRUE, n_cores = 1)
+```
+
+### Plot clusters on PC1-4
+```{r}
+clusters <- c("sc3_3_clusters", "sc3_4_clusters", "sc3_5_clusters", "sc3_6_clusters", "sc3_7_clusters", "sc3_8_clusters", "sc3_9_clusters", "sc3_10_clusters", "sc3_11_clusters")
+for (cl in clusters) {
+  for (i in 1:nrow(pcs)) {
+  camps[[cl]] <- factor(camps[[cl]])
+  plot_components(camps, pcs[i, 1], pcs[i, 2], cl, palette = 3, width = 14, height = 12)
+  }
+}
+```
+
+### Plot markers
+```{r, fig.height=42, fig.width=30}
+options(error=recover)
+ks <- 3:11
+plot_list = list()
+for (i in seq_along(ks)) {
+p <- sc3_plot_markers(camps, k = ks[i], show_pdata = c("cell_type", "genotype", "total_features"))
+plot_list[[i]] <- p
+}
+for (i in 1:9) {
+  save_pheatmap_tiff(plot_list[[i]], paste("SC3/markers_k=",i+2,".tiff", sep = ""), 30, 42)
+}
+```
+
+
+
+### Plot DE genes
+```{r}
+library(grid)
+plot_list = list()
+for (x in c(3:11)) {
+p <- sc3_plot_de_genes(camps, k = x, show_pdata = c("cell_type", "genotype", "total_features"))
+plot_list[[x-2]] <- p
+}
+for (i in 1:9) {
+  save_pheatmap_tiff(plot_list[[i]], paste("SC3/DE_k=",i+2,".tiff", sep = ""), 30, 42)
+}
+```
+
+
+
+
+
+##Save RDS
+```{r}
+saveRDS(camps, file = "Data/Camps.rds")
+```

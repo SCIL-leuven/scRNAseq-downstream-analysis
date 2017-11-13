@@ -1,0 +1,117 @@
+---
+title: "Identifying important genes"
+author: "Jordi Camps"
+date: "July 5, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(scRNA.seq.funcs)
+library(M3Drop)
+library(limma)
+library(DESeq2)
+library(scater)
+set.seed(1234567)
+camps <- readRDS("Data/Camps.rds")
+endog_genes <- !fData(camps)$is_feature_control
+camps <- camps[endog_genes, ]
+fontsize <- theme(axis.text=element_text(size=6), axis.title=element_text(size=12), legend.title = element_text(size=12)) 
+```
+
+Prepare dataset
+```{r}
+seq_labels <- pData(camps)$sc3_6_clusters
+dim(camps)
+table(seq_labels)
+exprs_camps <- counts(camps)
+colnames(exprs_camps) <- seq_labels
+```
+
+
+##M3Drop
+```{r}
+camps_list <- M3Drop::M3DropCleanData(
+  exprs_camps,
+  labels = colnames(exprs_camps),
+  min_detected_genes = 1500,
+  is.counts = TRUE
+)
+
+models <- M3Drop::M3DropDropoutModels(camps_list$data)
+title(main = "Camps")
+
+DE_genes <- M3Drop::M3DropDifferentialExpression(
+  camps_list$data,
+  mt_method = "fdr",
+  mt_threshold = 0.05
+)
+title(main = "Camps")
+```
+
+
+##Check markers
+```{r}
+grid <- par(mfrow = c(4,5))
+camps_markers <- 
+  c("Ly6a", "Pdgfra", "Itga7","Alpl", "Myf5", "Myod1", "Myog", "Pax7", "Pdgfrb")
+rbind(camps_markers, camps_markers %in% DE_genes$Gene) 
+M3Drop::M3DropExpressionHeatmap(
+  DE_genes$Gene,
+  camps_list$data,
+  cell_labels = camps_list$labels,
+  key_genes = camps_markers
+)
+par(grid)
+```
+
+
+##DESeq
+```{r}
+dds_camps <- counts(camps)
+ddsMat <- DESeqDataSetFromMatrix(countData = dds_camps, 
+                                  colData = pData(camps), 
+                                  design = ~ sc3_6_clusters)
+
+ddsMat <- DESeq(ddsMat)
+res <- results(ddsMat)
+keep <- res$padj < 0.05 & !is.na(res$padj)
+res <- res[keep, ]
+length(unique(rownames(res)))
+
+```
+
+
+##Brennecke method
+```{r}
+Brennecke_HVG <- M3Drop::BrenneckeGetVariableGenes(
+  camps_list$data,
+  fdr = 0.05,
+  minBiolDisp = 0.5
+)
+length(Brennecke_HVG)
+```
+
+
+##Compare different methods
+```{r}
+all.genes <- unique(
+    c(
+        as.character(rownames(res)),
+        Brennecke_HVG,
+        as.character(DE_genes$Gene)
+    )
+)
+venn.diag <- vennCounts(
+    cbind(
+        all.genes %in% as.character(rownames(res)),
+        all.genes %in% Brennecke_HVG,
+        all.genes %in% as.character(DE_genes$Gene)
+    )
+)
+limma::vennDiagram(
+    venn.diag,
+    names = c("DESeq", "HVG", "M3Drop"),
+    circle.col = c("magenta", "blue", "green")
+)
+```
+
