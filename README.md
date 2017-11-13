@@ -28,6 +28,10 @@ Make sure to have a **count file** containing single cells as columns and genes 
 Make an **annotation file** that contains important annotation about your experiment.
 More information is given in the [Hemberg course](https://hemberg-lab.github.io/scRNA.seq.course/exprs-qc.html#tung-dataset)
 
+## Scripts
+
+You can find some scripts as .Rmd files to use for your analysis, they include QC, confounding factors, normalization, clustering and gene selection.
+
 ## Quality control
 
 For QC we use the package [scater](https://github.com/davismcc/scater) developed by David McCarthy from Cambridge
