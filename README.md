@@ -1,15 +1,6 @@
 # scRNAseq-downstream-analysis
 R scripts for downstream analysis for single-cell RNA-seq
 
-## Data
-Datasets used as examples here include:
-* 3000 mouse cortex cells from [Zeisel et al, 2015.](http://science.sciencemag.org/content/347/6226/1138)
-* 1200 mouse embryonic cells from [Scialdone et al, 2016.](http://www.nature.com/nature/journal/v535/n7611/full/nature18633.html?foxtrotcallback=true)
-
-Kudos to the authors of these studies who have made their data available.
-* For the mouse cortex data, see the [Linnarsson Lab website.](http://linnarssonlab.org/cortex/)
-* For the mouse embryonic cell data, see the [Cambridge University Stem Cells website.](http://gastrulation.stemcells.cam.ac.uk/scialdone2016)
-
 ## Tutorial
 
 A great tutorial that I used for analyzing single-cell RNA-seq data is the [Hemberg course](https://hemberg-lab.github.io/scRNA.seq.course/).
